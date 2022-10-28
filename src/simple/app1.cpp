@@ -64,13 +64,23 @@ int main(int argc, const char *argv[]) {
   };
 
   int num_targets =
-      nfc_initiator_list_passive_targets(pnd, nm_mifare, nts.data(), 32);
+      nfc_initiator_list_passive_targets(pnd, nm_mifare, nts.data(), 8);
   if (num_targets < 0) {
     std::cerr << "failed: nfc_initiator_list_passive_targets: "
               << nfc_strerror(pnd) << std::endl;
     return 1;
   }
   std::cout << "ISO14443A tag was found: " << num_targets << std::endl;
+  for (int i = 0; i < num_targets; ++i) {
+    // str_nfc_modulation_type
+    std::cout << "#" << i << std::endl;
+    std::vector<char *> bufp(16);
+    int n = str_nfc_target(bufp.data(), &nts[i], true);
+    for (int j = 0; j < n; ++j) {
+      std::cout << bufp[j] << std::endl;
+      nfc_free(bufp[j]);
+    }
+  }
 
   // Close NFC device
   nfc_close(pnd);
