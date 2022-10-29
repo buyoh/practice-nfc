@@ -56,29 +56,42 @@ int main(int argc, const char *argv[]) {
 
   std::cout << "device name = " << nfc_device_get_name(pnd) << std::endl;
 
-  std::vector<nfc_target> nts(8);
-  // Poll for a ISO14443A (MIFARE) tag
-  const nfc_modulation nm_mifare = {
-      .nmt = NMT_ISO14443A,
-      .nbr = NBR_106,
-  };
+  for (nfc_modulation_type nmt = NMT_ISO14443A; nmt < NMT_END_ENUM;
+       ++(int &)nmt) {
 
-  int num_targets =
-      nfc_initiator_list_passive_targets(pnd, nm_mifare, nts.data(), 8);
-  if (num_targets < 0) {
-    std::cerr << "failed: nfc_initiator_list_passive_targets: "
-              << nfc_strerror(pnd) << std::endl;
-    return 1;
-  }
-  std::cout << "ISO14443A tag was found: " << num_targets << std::endl;
-  for (int i = 0; i < num_targets; ++i) {
-    // str_nfc_modulation_type
-    std::cout << "#" << i << std::endl;
-    std::vector<char *> bufp(16);
-    int n = str_nfc_target(bufp.data(), &nts[i], true);
-    for (int j = 0; j < n; ++j) {
-      std::cout << bufp[j] << std::endl;
-      nfc_free(bufp[j]);
+    for (nfc_baud_rate nbr : {NBR_106, NBR_212, NBR_424, NBR_847}) {
+      std::vector<nfc_target> nts(8);
+      // Poll for a ISO14443A (MIFARE) tag
+      const nfc_modulation nm_mifare = {
+          .nmt = nmt,
+          .nbr = nbr,
+      };
+
+      int num_targets =
+          nfc_initiator_list_passive_targets(pnd, nm_mifare, nts.data(), 8);
+      if (num_targets < 0) {
+        std::cerr << "failed: nfc_initiator_list_passive_targets: "
+                  << nfc_strerror(pnd) << std::endl;
+        return 1;
+      }
+      if (num_targets == 0)
+        continue;
+
+      std::cout << str_nfc_modulation_type(nmt) << " with "
+                << str_nfc_baud_rate(nbr)
+                << " tag was found: num = " << num_targets << std::endl;
+      for (int i = 0; i < num_targets; ++i) {
+        // str_nfc_modulation_type
+        std::cout << "#" << i << std::endl;
+        std::vector<char *> bufp(256);
+        int ok = str_nfc_target(bufp.data(), &nts[i], true);
+        if (ok >= 0) {
+          for (int j = 0; j < 256 || bufp[j]; ++j) {
+            std::cout << bufp[j] << std::endl;
+            nfc_free(bufp[j]);
+          }
+        }
+      }
     }
   }
 
